@@ -22,6 +22,28 @@ export const Cup3DCanvas: React.FC<Cup3DCanvasProps> = ({
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
 
+  // References to keep state synced without stale closures in rAF loop
+  const steamEnabledRef = useRef(steamEnabled);
+  const autoRotateRef = useRef(autoRotate);
+  const currentFlavorRef = useRef(currentFlavor);
+  const beverageTypeRef = useRef(beverageType);
+
+  useEffect(() => {
+    steamEnabledRef.current = steamEnabled;
+  }, [steamEnabled]);
+
+  useEffect(() => {
+    autoRotateRef.current = autoRotate;
+  }, [autoRotate]);
+
+  useEffect(() => {
+    currentFlavorRef.current = currentFlavor;
+  }, [currentFlavor]);
+
+  useEffect(() => {
+    beverageTypeRef.current = beverageType;
+  }, [beverageType]);
+
   // References to 3D elements for dynamic state updates
   const cupMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
   const liquidMeshRef = useRef<THREE.Mesh | null>(null);
@@ -29,14 +51,15 @@ export const Cup3DCanvas: React.FC<Cup3DCanvasProps> = ({
   const foamMeshRef = useRef<THREE.Mesh | null>(null);
   const steamParticlesRef = useRef<THREE.Points | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
+  const cupGroupRef = useRef<THREE.Group | null>(null);
 
   // Initial WebGL Scene Setup
   useEffect(() => {
     if (!mountRef.current) return;
 
     const container = mountRef.current;
-    const width = container.clientWidth;
-    const height = container.clientHeight || 440;
+    const width = container.clientWidth || 360;
+    const height = container.clientHeight || 400;
 
     // Detect software WebGL
     const isSoftwareGl = (() => {
@@ -51,8 +74,15 @@ export const Cup3DCanvas: React.FC<Cup3DCanvasProps> = ({
 
     // 1. Scene & Camera Setup
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
-    camera.position.set(0, 2.6, 5.2);
+
+    // Responsive Camera Setup: Zoomed OUT comfortably so cup occupies 50-60% of viewport
+    const aspect = width / height;
+    const fov = aspect < 0.8 ? 42 : 35;
+    const camera = new THREE.PerspectiveCamera(fov, aspect, 0.1, 100);
+
+    // Position camera far enough to see entire cup from base to rim with empty space
+    const initialCamZ = aspect < 0.8 ? 9.2 : 7.8;
+    camera.position.set(0, 2.2, initialCamZ);
 
     // 2. WebGL Renderer with ACESFilmic Tone Mapping
     const renderer = new THREE.WebGLRenderer({
@@ -64,23 +94,24 @@ export const Cup3DCanvas: React.FC<Cup3DCanvasProps> = ({
     renderer.setPixelRatio(isSoftwareGl ? 1 : Math.min(window.devicePixelRatio, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
+    renderer.toneMappingExposure = 1.25;
     renderer.shadowMap.enabled = !isSoftwareGl;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     container.appendChild(renderer.domElement);
 
-    // 3. OrbitControls
+    // 3. OrbitControls - Target midpoint of cup (Y = 1.15)
     const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 1.15, 0);
     controls.enableDamping = !isSoftwareGl;
     controls.dampingFactor = 0.05;
-    controls.maxPolarAngle = Math.PI / 2 + 0.05;
+    controls.maxPolarAngle = Math.PI / 2 + 0.08;
     controls.minPolarAngle = 0.2;
-    controls.minDistance = 3.2;
-    controls.maxDistance = 7.5;
-    controls.autoRotate = autoRotate;
-    controls.autoRotateSpeed = 1.2;
+    controls.minDistance = 4.5;
+    controls.maxDistance = 12.0;
+    controls.autoRotate = false; // Handled directly in rAF loop for perfect synchronization
     controlsRef.current = controls;
+    controls.update();
 
     // 4. Procedural Studio Environment Map (RoomEnvironment)
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
@@ -88,8 +119,8 @@ export const Cup3DCanvas: React.FC<Cup3DCanvasProps> = ({
     pmremGenerator.dispose();
 
     // Key Light (Warm Sunlight)
-    const keyLight = new THREE.DirectionalLight(0xfff5e4, 2.5);
-    keyLight.position.set(4.5, 6, 4);
+    const keyLight = new THREE.DirectionalLight(0xfff5e4, 2.8);
+    keyLight.position.set(4.5, 6.5, 4);
     keyLight.castShadow = !isSoftwareGl;
     if (keyLight.castShadow) {
       keyLight.shadow.mapSize.width = 1024;
@@ -99,11 +130,11 @@ export const Cup3DCanvas: React.FC<Cup3DCanvasProps> = ({
     scene.add(keyLight);
 
     // Fill Light (Cool Sky)
-    const fillLight = new THREE.HemisphereLight(0xfff8ee, 0x073b2b, 1.4);
+    const fillLight = new THREE.HemisphereLight(0xfff8ee, 0x073b2b, 1.5);
     scene.add(fillLight);
 
     // Rim Backlight (Warm Gold Highlight)
-    const rimLight = new THREE.DirectionalLight(0xd9a52b, 2.0);
+    const rimLight = new THREE.DirectionalLight(0xd9a52b, 2.2);
     rimLight.position.set(-4, 5, -4);
     scene.add(rimLight);
 
@@ -169,7 +200,7 @@ export const Cup3DCanvas: React.FC<Cup3DCanvasProps> = ({
     };
 
     const cupMaterial = new THREE.MeshStandardMaterial({
-      color: getFlavorColor(currentFlavor),
+      color: getFlavorColor(currentFlavorRef.current),
       roughness: 0.65,
       metalness: 0.04,
       bumpMap: waffleBumpMap,
@@ -179,6 +210,7 @@ export const Cup3DCanvas: React.FC<Cup3DCanvasProps> = ({
 
     // 6. Realistic Tapered Waffle Cup Geometry (Lathe Extrusion)
     const cupGroup = new THREE.Group();
+    cupGroupRef.current = cupGroup;
 
     const points: THREE.Vector2[] = [];
     const heightCup = 2.3;
@@ -303,37 +335,59 @@ export const Cup3DCanvas: React.FC<Cup3DCanvasProps> = ({
     }
     scene.add(beanGroup);
 
-    // 9. Steam Particle System
-    const particleCount = 35;
+    // 9. Soft Steam Particle System (Soft Wisp Texture)
+    const createSteamTexture = () => {
+      const pCanvas = document.createElement('canvas');
+      pCanvas.width = 64;
+      pCanvas.height = 64;
+      const pCtx = pCanvas.getContext('2d')!;
+      const pGrad = pCtx.createRadialGradient(32, 32, 0, 32, 32, 32);
+      pGrad.addColorStop(0, 'rgba(255, 248, 238, 0.7)');
+      pGrad.addColorStop(0.5, 'rgba(255, 248, 238, 0.25)');
+      pGrad.addColorStop(1, 'rgba(255, 248, 238, 0)');
+      pCtx.fillStyle = pGrad;
+      pCtx.fillRect(0, 0, 64, 64);
+      return new THREE.CanvasTexture(pCanvas);
+    };
+
+    const particleCount = 55;
     const particleGeo = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);
+    const particleSpeeds = new Float32Array(particleCount);
+    const particleOffsets = new Float32Array(particleCount);
 
     for (let i = 0; i < particleCount; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 0.7;
-      positions[i * 3 + 1] = heightCup + Math.random() * 1.6;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 0.7;
+      const angle = Math.random() * Math.PI * 2;
+      const dist = Math.random() * 0.65;
+      positions[i * 3] = Math.cos(angle) * dist;
+      positions[i * 3 + 1] = heightCup + 0.1 + Math.random() * 1.8;
+      positions[i * 3 + 2] = Math.sin(angle) * dist;
+      particleSpeeds[i] = 0.35 + Math.random() * 0.3;
+      particleOffsets[i] = Math.random() * Math.PI * 2;
     }
 
     particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
     const particleMat = new THREE.PointsMaterial({
+      map: createSteamTexture(),
       color: 0xfff8ee,
-      size: 0.09,
+      size: 0.24,
       transparent: true,
-      opacity: 0.3,
+      opacity: 0.45,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
 
     const steamParticles = new THREE.Points(particleGeo, particleMat);
     steamParticlesRef.current = steamParticles;
+    steamParticles.visible = steamEnabledRef.current;
     scene.add(steamParticles);
 
-    // Position cup
+    // Position cup group cleanly
     cupGroup.position.y = 0.02;
     scene.add(cupGroup);
 
-    // 10. Render Loop
+    // 10. Animation Loop with Dynamic Controls & Spin Support
     let animationFrameId: number;
     const clock = new THREE.Clock();
 
@@ -341,21 +395,35 @@ export const Cup3DCanvas: React.FC<Cup3DCanvasProps> = ({
       const delta = clock.getDelta();
       const time = clock.getElapsedTime();
 
-      // Steam particle animation
-      if (steamParticlesRef.current && steamEnabled) {
-        const posAttr = steamParticlesRef.current.geometry.attributes.position as THREE.BufferAttribute;
-        const array = posAttr.array as Float32Array;
+      // Continuous automatic vertical axis cup rotation when Spin is active
+      if (autoRotateRef.current && cupGroupRef.current) {
+        cupGroupRef.current.rotation.y += delta * 0.65;
+      }
 
-        for (let i = 0; i < particleCount; i++) {
-          array[i * 3 + 1] += delta * 0.35;
-          array[i * 3] += Math.sin(time * 1.8 + i) * 0.002;
-          if (array[i * 3 + 1] > heightCup + 2.0) {
-            array[i * 3 + 1] = heightCup + 0.1;
-            array[i * 3] = (Math.random() - 0.5) * 0.7;
-            array[i * 3 + 2] = (Math.random() - 0.5) * 0.7;
+      // Steam particle animation rising from cup opening
+      if (steamParticlesRef.current) {
+        steamParticlesRef.current.visible = steamEnabledRef.current;
+
+        if (steamEnabledRef.current) {
+          const posAttr = steamParticlesRef.current.geometry.attributes.position as THREE.BufferAttribute;
+          const array = posAttr.array as Float32Array;
+
+          for (let i = 0; i < particleCount; i++) {
+            array[i * 3 + 1] += delta * particleSpeeds[i];
+            array[i * 3] += Math.sin(time * 1.6 + particleOffsets[i]) * 0.003;
+            array[i * 3 + 2] += Math.cos(time * 1.6 + particleOffsets[i]) * 0.003;
+
+            // Reset particle when it reaches maximum height
+            if (array[i * 3 + 1] > heightCup + 2.2) {
+              const angle = Math.random() * Math.PI * 2;
+              const dist = Math.random() * 0.6;
+              array[i * 3] = Math.cos(angle) * dist;
+              array[i * 3 + 1] = heightCup + 0.05;
+              array[i * 3 + 2] = Math.sin(angle) * dist;
+            }
           }
+          posAttr.needsUpdate = true;
         }
-        posAttr.needsUpdate = true;
       }
 
       controls.update();
@@ -367,10 +435,15 @@ export const Cup3DCanvas: React.FC<Cup3DCanvasProps> = ({
 
     const handleResize = () => {
       if (!mountRef.current) return;
-      const w = mountRef.current.clientWidth;
-      const h = mountRef.current.clientHeight || 440;
-      camera.aspect = w / h;
+      const w = mountRef.current.clientWidth || 360;
+      const h = mountRef.current.clientHeight || 400;
+      const newAspect = w / h;
+
+      camera.aspect = newAspect;
+      camera.fov = newAspect < 0.8 ? 42 : 35;
+      camera.position.z = newAspect < 0.8 ? 9.2 : 7.8;
       camera.updateProjectionMatrix();
+
       renderer.setSize(w, h);
     };
 
@@ -381,8 +454,8 @@ export const Cup3DCanvas: React.FC<Cup3DCanvasProps> = ({
       cancelAnimationFrame(animationFrameId);
       controls.dispose();
       renderer.dispose();
-      if (mountRef.current && renderer.domElement) {
-        mountRef.current.removeChild(renderer.domElement);
+      if (mountRef.current && renderer.domElement && container.contains(renderer.domElement)) {
+        container.removeChild(renderer.domElement);
       }
     };
   }, []);
@@ -415,13 +488,6 @@ export const Cup3DCanvas: React.FC<Cup3DCanvasProps> = ({
     }
   }, [beverageType]);
 
-  // Update auto rotate
-  useEffect(() => {
-    if (controlsRef.current) {
-      controlsRef.current.autoRotate = autoRotate;
-    }
-  }, [autoRotate]);
-
   // Update liquid level
   useEffect(() => {
     if (liquidMeshRef.current) {
@@ -431,18 +497,11 @@ export const Cup3DCanvas: React.FC<Cup3DCanvasProps> = ({
     }
   }, [liquidLevel]);
 
-  // Update steam particles
-  useEffect(() => {
-    if (steamParticlesRef.current) {
-      steamParticlesRef.current.visible = steamEnabled;
-    }
-  }, [steamEnabled]);
-
   return (
     <div
       ref={mountRef}
       onClick={onCanvasClick}
-      className="w-full h-full cursor-grab active:cursor-grabbing"
+      className="w-full h-full cursor-grab active:cursor-grabbing select-none"
     />
   );
 };

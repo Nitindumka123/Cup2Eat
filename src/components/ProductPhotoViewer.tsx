@@ -14,7 +14,8 @@ import {
   Award,
   Box,
   Eye,
-  RotateCcw
+  RotateCcw,
+  Wind
 } from 'lucide-react';
 import { openWhatsApp } from '../utils/whatsapp';
 import { motion, AnimatePresence } from 'motion/react';
@@ -65,9 +66,9 @@ export const ProductPhotoViewer: React.FC<ProductPhotoViewerProps> = ({
 
   const getDisplayImage = () => {
     if (currentFlavorId === 'wholesale') {
-      return '/src/assets/images/wholesale_box_packaging_1794364086788.jpg';
+      return '/assets/images/wholesale_box_packaging_1794364086788.jpg';
     }
-    return currentFlavor.image;
+    return currentFlavor.image.replace('/src/assets/images/', '/assets/images/');
   };
 
   // Theme mapping for ambient backdrop
@@ -92,7 +93,7 @@ export const ProductPhotoViewer: React.FC<ProductPhotoViewerProps> = ({
       {/* Top Bar Header Badge & Dual Mode Switcher */}
       <div className="relative z-20 p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#17130C]/80 backdrop-blur-md">
         <div className="flex items-center gap-2 bg-[#073B2B]/90 px-3.5 py-1.5 rounded-full border border-[#D9A52B]/40 text-xs font-semibold text-[#FFF4D6] shadow-sm">
-          <Award className="w-4 h-4 text-[#F2B544] animate-pulse" />
+          <Award className="w-4 h-4 text-[#F2B544]" />
           <span className="font-bold">Real Commercial Product Showcase</span>
         </div>
 
@@ -100,9 +101,9 @@ export const ProductPhotoViewer: React.FC<ProductPhotoViewerProps> = ({
         <div className="flex items-center gap-1.5 bg-[#073B2B]/90 p-1 rounded-xl border border-[#D9A52B]/30 shadow-inner">
           <button
             onClick={() => setStageMode('photo')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
               stageMode === 'photo'
-                ? 'bg-[#F2B544] text-[#073B2B] shadow-md font-black'
+                ? 'bg-[#F2B544] text-[#073B2B] shadow-md font-black scale-102'
                 : 'text-[#FFF4D6]/80 hover:text-white'
             }`}
           >
@@ -112,9 +113,9 @@ export const ProductPhotoViewer: React.FC<ProductPhotoViewerProps> = ({
 
           <button
             onClick={() => setStageMode('3d')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
               stageMode === '3d'
-                ? 'bg-[#F2B544] text-[#073B2B] shadow-md font-black'
+                ? 'bg-[#F2B544] text-[#073B2B] shadow-md font-black scale-102'
                 : 'text-[#FFF4D6]/80 hover:text-white'
             }`}
           >
@@ -125,10 +126,10 @@ export const ProductPhotoViewer: React.FC<ProductPhotoViewerProps> = ({
       </div>
 
       {/* Main Interactive Stage */}
-      <div className="relative z-10 w-full min-h-[320px] sm:min-h-[380px] lg:min-h-[440px] flex items-center justify-center p-4 overflow-hidden">
+      <div className="relative z-10 w-full min-h-[340px] sm:min-h-[400px] lg:min-h-[460px] flex items-center justify-center p-3 sm:p-4 overflow-hidden">
         {stageMode === '3d' ? (
           /* 3D Dimensional Interactive Studio Canvas */
-          <div className="relative w-full h-[360px] sm:h-[400px] rounded-2xl overflow-hidden border border-[#D9A52B]/30 bg-gradient-to-b from-[#0B5D43]/40 to-[#140E0A] shadow-2xl">
+          <div className="relative w-full h-[380px] sm:h-[420px] rounded-2xl overflow-hidden border border-[#D9A52B]/30 bg-gradient-to-b from-[#0B5D43]/40 to-[#140E0A] shadow-2xl flex flex-col justify-between">
             <Cup3DCanvas
               currentFlavor={currentFlavorId === 'wholesale' ? 'chocolate' : currentFlavorId}
               beverageType={beverageServing}
@@ -138,49 +139,57 @@ export const ProductPhotoViewer: React.FC<ProductPhotoViewerProps> = ({
             />
 
             {/* 3D Overlay Badge */}
-            <div className="absolute top-3 left-3 bg-[#073B2B]/90 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-[#F2B544] border border-[#D9A52B]/40 shadow flex items-center gap-1.5 pointer-events-none">
+            <div className="absolute top-3 left-3 bg-[#073B2B]/90 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-bold text-[#F2B544] border border-[#D9A52B]/40 shadow flex items-center gap-1.5 pointer-events-none z-20">
               <Box className="w-3.5 h-3.5 text-[#F2B544]" />
-              <span>Interactive 3D Model · Drag to Rotate</span>
+              <span>3D Studio · Drag to Rotate</span>
             </div>
 
-            {/* 3D Quick Toggles Strip */}
-            <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2 z-20 bg-[#17130C]/90 backdrop-blur-md p-2 rounded-xl border border-white/10 text-xs">
+            {/* 3D Interactive Controls Strip */}
+            <div className="absolute bottom-3 left-3 right-3 flex flex-wrap items-center justify-between gap-2 z-20 bg-[#17130C]/90 backdrop-blur-md p-2.5 rounded-xl border border-white/15 text-xs shadow-2xl">
               <div className="flex items-center gap-1.5">
-                <span className="text-white/70 text-[11px] font-bold">Beverage:</span>
+                <span className="text-white/70 text-[11px] font-bold mr-0.5">Beverage:</span>
                 <button
                   onClick={() => setBeverageServing('latte')}
-                  className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                    beverageServing === 'latte' ? 'bg-[#D9A52B] text-[#073B2B]' : 'bg-white/10 text-white/70'
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                    beverageServing === 'latte' ? 'bg-[#D9A52B] text-[#073B2B] shadow font-black' : 'bg-white/10 text-white/70 hover:bg-white/20'
                   }`}
                 >
                   Latte
                 </button>
                 <button
                   onClick={() => setBeverageServing('chai')}
-                  className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                    beverageServing === 'chai' ? 'bg-[#D9A52B] text-[#073B2B]' : 'bg-white/10 text-white/70'
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                    beverageServing === 'chai' ? 'bg-[#D9A52B] text-[#073B2B] shadow font-black' : 'bg-white/10 text-white/70 hover:bg-white/20'
                   }`}
                 >
                   Chai
                 </button>
               </div>
 
-              <div className="flex items-center gap-1.5">
+              {/* Functional Steam & Spin Controls */}
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => setSteamEnabled(!steamEnabled)}
-                  className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                    steamEnabled ? 'bg-[#073B2B] text-[#F2B544] border border-[#D9A52B]/40' : 'bg-white/10 text-white/50'
+                  className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 shadow-sm ${
+                    steamEnabled
+                      ? 'bg-[#F2B544] text-[#073B2B] font-black shadow-md border border-[#D9A52B]'
+                      : 'bg-white/10 text-white/60 hover:bg-white/20'
                   }`}
                 >
-                  Steam
+                  <Wind className={`w-3.5 h-3.5 ${steamEnabled ? 'text-[#073B2B] animate-pulse' : 'text-white/40'}`} />
+                  <span>Steam {steamEnabled ? 'ON' : 'OFF'}</span>
                 </button>
+
                 <button
                   onClick={() => setAutoSpin(!autoSpin)}
-                  className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                    autoSpin ? 'bg-[#073B2B] text-[#F2B544] border border-[#D9A52B]/40' : 'bg-white/10 text-white/50'
+                  className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 shadow-sm ${
+                    autoSpin
+                      ? 'bg-[#F2B544] text-[#073B2B] font-black shadow-md border border-[#D9A52B]'
+                      : 'bg-white/10 text-white/60 hover:bg-white/20'
                   }`}
                 >
-                  Spin
+                  <RotateCcw className={`w-3.5 h-3.5 ${autoSpin ? 'animate-spin text-[#073B2B]' : 'text-white/40'}`} style={{ animationDuration: '4s' }} />
+                  <span>Spin {autoSpin ? 'ON' : 'OFF'}</span>
                 </button>
               </div>
             </div>
@@ -199,7 +208,12 @@ export const ProductPhotoViewer: React.FC<ProductPhotoViewerProps> = ({
                   exit={{ opacity: 0, scale: 1.05, y: -15 }}
                   transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] as const }}
                   className="max-h-[300px] sm:max-h-[340px] w-auto object-contain rounded-2xl shadow-2xl border border-[#D9A52B]/40 transform-gpu"
-                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    if (!target.src.includes('/src/assets/images/')) {
+                      target.src = getDisplayImage().replace('/assets/images/', '/src/assets/images/');
+                    }
+                  }}
                 />
               </AnimatePresence>
 
@@ -207,7 +221,7 @@ export const ProductPhotoViewer: React.FC<ProductPhotoViewerProps> = ({
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="absolute bottom-4 right-4 bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-bold text-[#FFF4D6] border border-white/20 shadow-lg flex items-center gap-1.5"
+                className="absolute bottom-4 right-4 bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-bold text-[#FFF4D6] border border-white/20 shadow-lg flex items-center gap-1.5 pointer-events-none"
               >
                 <Maximize2 className="w-3.5 h-3.5 text-[#F2B544]" />
                 <span>Inspect Texture</span>
@@ -226,7 +240,7 @@ export const ProductPhotoViewer: React.FC<ProductPhotoViewerProps> = ({
         )}
       </div>
 
-      {/* Flavour Dock & Beverage Serving Selector */}
+      {/* Flavour Dock & Action Buttons */}
       <div className="relative z-20 bg-[#17130C]/95 backdrop-blur-xl border-t border-[#D9A52B]/40 p-4 sm:p-5 space-y-4">
         {/* Flavour Buttons */}
         <div className="space-y-2">
@@ -348,7 +362,12 @@ export const ProductPhotoViewer: React.FC<ProductPhotoViewerProps> = ({
                   src={getDisplayImage()}
                   alt={currentFlavor.name}
                   className="max-h-[50vh] w-auto object-contain rounded-xl"
-                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    if (!target.src.includes('/src/assets/images/')) {
+                      target.src = getDisplayImage().replace('/assets/images/', '/src/assets/images/');
+                    }
+                  }}
                 />
               </div>
 

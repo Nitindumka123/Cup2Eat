@@ -22,7 +22,7 @@ export const BrandStory: React.FC = () => {
               <div className="relative">
                 <div className="rounded-3xl overflow-hidden border-2 border-[#073B2B]/20 shadow-2xl">
                   <img
-                    src="/src/assets/images/founder_varun_khera_event_1794364087135.jpg"
+                    src="/assets/images/founder_varun_khera_event_1794364087135.jpg"
                     alt="Founder Varun Khera at Cup2Eat Expo"
                     className="w-full h-[460px] object-cover"
                     referrerPolicy="no-referrer"

@@ -9,7 +9,7 @@
       "capacity_ml": 100,
       "price": null,
       "active": true,
-      "image_url": "/src/assets/images/flavor_chocolate_cup_1794364085690.jpg",
+      "image_url": "/assets/images/flavor_chocolate_cup_1794364085690.jpg",
       "created_at": "2026-11-11T02:39:03.699Z",
       "updated_at": "2026-11-11T02:39:03.699Z"
     },
@@ -22,7 +22,7 @@
       "capacity_ml": 100,
       "price": null,
       "active": true,
-      "image_url": "/src/assets/images/flavor_vanilla_cup_1794364085246.jpg",
+      "image_url": "/assets/images/flavor_vanilla_cup_1794364085246.jpg",
       "created_at": "2026-11-11T02:39:03.699Z",
       "updated_at": "2026-11-11T02:39:03.699Z"
     },
@@ -35,7 +35,7 @@
       "capacity_ml": 100,
       "price": null,
       "active": true,
-      "image_url": "/src/assets/images/flavor_elaichi_cup_1794364086233.jpg",
+      "image_url": "/assets/images/flavor_elaichi_cup_1794364086233.jpg",
       "created_at": "2026-11-11T02:39:03.699Z",
       "updated_at": "2026-11-11T02:39:03.699Z"
     },
@@ -48,7 +48,7 @@
       "capacity_ml": 100,
       "price": 3999,
       "active": true,
-      "image_url": "/src/assets/images/wholesale_box_packaging_1794364086788.jpg",
+      "image_url": "/assets/images/wholesale_box_packaging_1794364086788.jpg",
       "created_at": "2026-11-11T02:39:03.699Z",
       "updated_at": "2026-11-11T02:39:03.699Z"
     }
@@ -574,8 +574,8 @@
     {
       "id": "usr-admin-primary",
       "email": "dumkanitin0@gmail.com",
-      "password_hash": "1c0914062653632325ed7e72bb1bd9ed5222df06ca6f187d3b652d07b127597340ca3992d4838bc9df68f1b56090f5a7b9fc253b7cb19c46dacaa5a5c505d201",
-      "salt": "a05aeddf11a7ded1acbb8f6cb838d6be",
+      "password_hash": "dc58581171812eabd68150bd0a60d5fd3891dd7f27750fb1d783436e0958d6d70cdab305373e0071b223e999e9ecc182f5c372e009a67077886f596c33241902",
+      "salt": "07461c673f3c70cd6a07d7cc7133626e",
       "name": "Nitin Dumka (Administrator)",
       "role": "superadmin",
       "created_at": "2026-11-11T03:08:31.412Z"
