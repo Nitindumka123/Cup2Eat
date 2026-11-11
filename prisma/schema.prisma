@@ -1,0 +1,87 @@
+// Prisma Schema for Cup2Eat Database
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  name        String
+  description String
+  flavour     String
+  capacity_ml Int      @default(100)
+  price       Float?   // Optional price
+  active      Boolean  @default(true)
+  image_url   String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  enquiries Enquiry[]
+
+  @@map("products")
+}
+
+model Enquiry {
+  id            String   @id @default(uuid())
+  enquiry_type  String   @default("general") // general, product, wholesale, b2b, samples
+  customer_name String
+  email         String
+  phone         String
+  business_name String?
+  business_type String?
+  city          String?
+  product_id    String?
+  flavour       String?
+  quantity      String?
+  message       String
+  status        String   @default("pending") // pending, contacted, completed, cancelled
+  source        String   @default("website")
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  product Product? @relation(fields: [product_id], references: [id], onDelete: SetNull)
+
+  @@map("enquiries")
+}
+
+model WholesaleEnquiry {
+  id                  String   @id @default(uuid())
+  customer_name       String
+  business_name       String?
+  email               String
+  phone               String
+  city                String?
+  quantity_boxes      Int      @default(1)
+  quantity_cups       Int      @default(396)
+  product_preferences String?  // Flavour preferences (e.g. Mixed, Chocolate, Vanilla, Elaichi)
+  message             String
+  status              String   @default("pending")
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  @@map("wholesale_enquiries")
+}
+
+model B2BEnquiry {
+  id                       String   @id @default(uuid())
+  customer_name            String
+  business_name            String
+  business_type            String
+  email                    String
+  phone                    String
+  city                     String
+  estimated_monthly_volume String   @default("396")
+  co_branding_requested    Boolean  @default(false)
+  message                  String
+  status                   String   @default("pending")
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
+
+  @@map("b2b_enquiries")
+}

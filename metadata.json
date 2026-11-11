@@ -1,0 +1,6 @@
+{
+  "name": "Cup2Eat - Eat Your Drink! Edible Cups & Sustainable Packaging",
+  "description": "Revolutionizing beverages with delicious, eco-friendly 100ml edible cups in Chocolate, Vanilla, and Elaichi. Sip your drink and eat your cup!",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
