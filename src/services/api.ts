@@ -67,6 +67,7 @@ export interface ApiResponse<T = any> {
   data?: T;
   token?: string;
   user?: any;
+  customer?: any;
   errors?: string[];
   error?: string;
 }
@@ -137,10 +138,11 @@ export async function submitB2BEnquiry(payload: B2BEnquiryPayload): Promise<ApiR
 }
 
 export async function submitCustomerOrder(payload: CustomerOrderPayload): Promise<ApiResponse> {
+  const token = localStorage.getItem('cup2eat_customer_token') || undefined;
   return apiFetch('/api/orders', {
     method: 'POST',
     body: JSON.stringify(payload),
-  });
+  }, token);
 }
 
 export async function getOrderDetails(id: string): Promise<ApiResponse> {
@@ -149,6 +151,56 @@ export async function getOrderDetails(id: string): Promise<ApiResponse> {
 
 export async function checkBackendHealth(): Promise<ApiResponse> {
   return apiFetch('/api/health');
+}
+
+// ----------------------------------------------------
+// Customer OTP & Account API Methods
+// ----------------------------------------------------
+export async function sendCustomerOtp(target: string, target_type: 'email' | 'phone'): Promise<ApiResponse> {
+  return apiFetch('/api/auth/send-otp', {
+    method: 'POST',
+    body: JSON.stringify({ target, target_type }),
+  });
+}
+
+export async function verifyCustomerOtp(
+  target: string,
+  target_type: 'email' | 'phone',
+  code: string,
+  full_name?: string
+): Promise<ApiResponse> {
+  return apiFetch('/api/auth/verify-otp', {
+    method: 'POST',
+    body: JSON.stringify({ target, target_type, code, full_name }),
+  });
+}
+
+export async function getCustomerMe(token: string): Promise<ApiResponse> {
+  return apiFetch('/api/customer/me', { method: 'GET' }, token);
+}
+
+export async function updateCustomerProfileData(token: string, updates: any): Promise<ApiResponse> {
+  return apiFetch('/api/customer/me', {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  }, token);
+}
+
+export async function getCustomerOrders(token: string): Promise<ApiResponse> {
+  return apiFetch('/api/customer/orders', { method: 'GET' }, token);
+}
+
+export async function getCustomerInvoices(token: string): Promise<ApiResponse> {
+  return apiFetch('/api/customer/invoices', { method: 'GET' }, token);
+}
+
+export async function customerLogout(token: string): Promise<ApiResponse> {
+  return apiFetch('/api/auth/logout', { method: 'POST' }, token);
+}
+
+export function getInvoiceDownloadUrl(invoiceId: string, token?: string): string {
+  const queryToken = token ? `?token=${encodeURIComponent(token)}` : '';
+  return `/api/invoices/${invoiceId}/download${queryToken}`;
 }
 
 // ----------------------------------------------------
@@ -179,6 +231,22 @@ export async function getAdminOrders(
 ): Promise<ApiResponse> {
   const query = new URLSearchParams(params as any).toString();
   return apiFetch(`/api/admin/orders${query ? `?${query}` : ''}`, { method: 'GET' }, token);
+}
+
+export async function getAdminInvoices(
+  token: string,
+  params?: { search?: string; status?: string }
+): Promise<ApiResponse> {
+  const query = new URLSearchParams(params as any).toString();
+  return apiFetch(`/api/admin/invoices${query ? `?${query}` : ''}`, { method: 'GET' }, token);
+}
+
+export async function getAdminInvoiceDetail(token: string, id: string): Promise<ApiResponse> {
+  return apiFetch(`/api/admin/invoices/${id}`, { method: 'GET' }, token);
+}
+
+export async function resendAdminInvoiceEmail(token: string, id: string): Promise<ApiResponse> {
+  return apiFetch(`/api/admin/invoices/${id}/resend-email`, { method: 'POST' }, token);
 }
 
 export async function updateAdminOrder(token: string, id: string, updates: any): Promise<ApiResponse> {

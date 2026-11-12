@@ -1,7 +1,9 @@
 import { Request, Response } from 'express';
-import { insertOrder, getOrderById, getSiteSettings } from '../db';
+import { insertOrder, getOrderById, getSiteSettings, verifyCustomerToken } from '../db';
 import { validateOrderInput, sanitizeText } from '../validators';
 import { OrderRecord } from '../types';
+
+import { generateInvoiceForOrder } from '../services/invoiceService';
 
 export async function handleCreateOrder(req: Request, res: Response): Promise<void> {
   try {
@@ -39,9 +41,21 @@ export async function handleCreateOrder(req: Request, res: Response): Promise<vo
     const order_reference = `ORD-${Date.now().toString().slice(-6)}-${randomSuffix}`;
     const timestamp = new Date().toISOString();
 
+    const authHeader = req.headers.authorization;
+    let customerId: string | undefined = req.body.customer_id;
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      const customer = await verifyCustomerToken(token);
+      if (customer) {
+        customerId = customer.id;
+      }
+    }
+
     const orderRecord: OrderRecord = {
       id: `ord-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       order_reference,
+      customer_id: customerId || null,
       customer_name: sanitizeText(customer_name),
       phone: sanitizeText(phone),
       email: sanitizeText(email || ''),
@@ -63,10 +77,21 @@ export async function handleCreateOrder(req: Request, res: Response): Promise<vo
 
     const saved = await insertOrder(orderRecord);
 
+    // Auto-generate invoice and trigger email dispatch
+    let invoice = null;
+    try {
+      invoice = await generateInvoiceForOrder(saved.id);
+    } catch (invErr) {
+      console.error('⚠️ Warning: Auto invoice generation failed for order:', saved.id, invErr);
+    }
+
     res.status(201).json({
       success: true,
       message: 'Order placed successfully and persisted in backend database.',
-      data: saved,
+      data: {
+        ...saved,
+        invoice_number: invoice?.invoice_number || null,
+      },
     });
   } catch (err: any) {
     console.error('❌ Error creating order:', err);

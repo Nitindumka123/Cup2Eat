@@ -10,6 +10,11 @@ import {
   SiteSettingsRecord,
   AdminUserRecord,
   AdminSessionRecord,
+  CustomerRecord,
+  CustomerSessionRecord,
+  OtpRequestRecord,
+  InvoiceRecord,
+  EmailLogRecord,
 } from './types';
 
 const dbPath = path.join(process.cwd(), 'dev.db.json');
@@ -23,6 +28,11 @@ interface DatabaseStore {
   site_settings: SiteSettingsRecord;
   admin_users: AdminUserRecord[];
   admin_sessions: AdminSessionRecord[];
+  customers: CustomerRecord[];
+  customer_sessions: CustomerSessionRecord[];
+  otp_requests: OtpRequestRecord[];
+  invoices: InvoiceRecord[];
+  email_logs: EmailLogRecord[];
 }
 
 const defaultSettings: SiteSettingsRecord = {
@@ -46,6 +56,11 @@ let memoryDb: DatabaseStore = {
   site_settings: defaultSettings,
   admin_users: [],
   admin_sessions: [],
+  customers: [],
+  customer_sessions: [],
+  otp_requests: [],
+  invoices: [],
+  email_logs: [],
 };
 
 // Helper: Password Hashing
@@ -72,6 +87,11 @@ function loadDatabase() {
         site_settings: loaded.site_settings || defaultSettings,
         admin_users: loaded.admin_users || [],
         admin_sessions: loaded.admin_sessions || [],
+        customers: loaded.customers || [],
+        customer_sessions: loaded.customer_sessions || [],
+        otp_requests: loaded.otp_requests || [],
+        invoices: loaded.invoices || [],
+        email_logs: loaded.email_logs || [],
       };
     }
   } catch (err) {
@@ -107,7 +127,7 @@ export async function initDatabase() {
       capacity_ml: 100,
       price: 15,
       active: true,
-      image_url: '/assets/images/flavor_chocolate_cup_1794364085690.jpg',
+      image_url: '/images/flavor_chocolate_cup_1794364085690.jpg',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     },
@@ -120,7 +140,7 @@ export async function initDatabase() {
       capacity_ml: 100,
       price: 15,
       active: true,
-      image_url: '/assets/images/flavor_vanilla_cup_1794364085246.jpg',
+      image_url: '/images/flavor_vanilla_cup_1794364085246.jpg',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     },
@@ -133,7 +153,7 @@ export async function initDatabase() {
       capacity_ml: 100,
       price: 15,
       active: true,
-      image_url: '/assets/images/flavor_elaichi_cup_1794364086233.jpg',
+      image_url: '/images/flavor_elaichi_cup_1794364086233.jpg',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     },
@@ -146,16 +166,21 @@ export async function initDatabase() {
       capacity_ml: 100,
       price: 3999,
       active: true,
-      image_url: '/assets/images/wholesale_box_packaging_1794364086788.jpg',
+      image_url: '/images/wholesale_box_packaging_1794364086788.jpg',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     },
   ];
 
   for (const item of seedItems) {
-    const exists = memoryDb.products.some((p) => p.slug === item.slug);
-    if (!exists) {
+    const existingIndex = memoryDb.products.findIndex((p) => p.slug === item.slug);
+    if (existingIndex === -1) {
       memoryDb.products.push(item);
+    } else {
+      // Normalize image_url for deployment safety
+      if (memoryDb.products[existingIndex].image_url?.includes('/src/assets/images/')) {
+        memoryDb.products[existingIndex].image_url = memoryDb.products[existingIndex].image_url!.replace('/src/assets/images/', '/images/');
+      }
     }
   }
 
@@ -416,11 +441,337 @@ export async function getDatabaseStats() {
     b2b_enquiries: memoryDb.b2b_enquiries.length,
     orders: memoryDb.orders.length,
     admin_users: memoryDb.admin_users.length,
+    customers: memoryDb.customers.length,
     total_records:
       memoryDb.products.length +
       memoryDb.enquiries.length +
       memoryDb.wholesale_enquiries.length +
       memoryDb.b2b_enquiries.length +
-      memoryDb.orders.length,
+      memoryDb.orders.length +
+      memoryDb.customers.length,
   };
+}
+
+// ----------------------------------------------------
+// Customer OTP & Authentication Engine
+// ----------------------------------------------------
+export async function createOrGetOtpRequest(
+  target: string,
+  target_type: 'email' | 'phone'
+): Promise<{ otp?: OtpRequestRecord; error?: string }> {
+  loadDatabase();
+
+  const cleanTarget = target.trim().toLowerCase();
+
+  // Validate formatting
+  if (target_type === 'email') {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanTarget)) {
+      return { error: 'Please enter a valid email address.' };
+    }
+  } else {
+    const cleanPhone = cleanTarget.replace(/\D/g, '');
+    if (cleanPhone.length < 10) {
+      return { error: 'Please enter a valid 10-digit mobile number.' };
+    }
+  }
+
+  // Rate Limiting & Resend Cooldown Check (60 seconds)
+  const existing = memoryDb.otp_requests.find((r) => r.target === cleanTarget);
+  if (existing && Date.now() - existing.created_at < 60000) {
+    const remainingSecs = Math.ceil((60000 - (Date.now() - existing.created_at)) / 1000);
+    return {
+      error: `Please wait ${remainingSecs} seconds before requesting a new OTP verification code.`,
+    };
+  }
+
+  // Clear older requests for target
+  memoryDb.otp_requests = memoryDb.otp_requests.filter((r) => r.target !== cleanTarget);
+
+  // Generate 6-digit cryptographically random OTP
+  const otpCode = crypto.randomInt(100000, 999999).toString();
+  const requestRecord: OtpRequestRecord = {
+    id: `otp-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`,
+    target: cleanTarget,
+    target_type,
+    otp_code: otpCode,
+    attempts: 0,
+    expires_at: Date.now() + 10 * 60 * 1000, // 10 minutes
+    created_at: Date.now(),
+  };
+
+  memoryDb.otp_requests.push(requestRecord);
+  saveDatabase();
+
+  console.log(`📱 [Cup2Eat OTP Dispatched] Target: ${cleanTarget} (${target_type}) | OTP: ${otpCode}`);
+
+  return { otp: requestRecord };
+}
+
+export async function verifyOtpCode(
+  target: string,
+  code: string
+): Promise<{ success: boolean; error?: string }> {
+  loadDatabase();
+
+  const cleanTarget = target.trim().toLowerCase();
+  const cleanCode = code.trim();
+
+  const reqIndex = memoryDb.otp_requests.findIndex((r) => r.target === cleanTarget);
+  if (reqIndex === -1) {
+    return { success: false, error: 'No active OTP verification request found for this address. Please request a new code.' };
+  }
+
+  const otpReq = memoryDb.otp_requests[reqIndex];
+
+  // Expiry check
+  if (Date.now() > otpReq.expires_at) {
+    memoryDb.otp_requests.splice(reqIndex, 1);
+    saveDatabase();
+    return { success: false, error: 'OTP code has expired. Please request a new verification code.' };
+  }
+
+  // Attempt Limit check
+  if (otpReq.attempts >= 5) {
+    memoryDb.otp_requests.splice(reqIndex, 1);
+    saveDatabase();
+    return { success: false, error: 'Maximum verification attempts exceeded. Please request a new OTP.' };
+  }
+
+  otpReq.attempts += 1;
+  saveDatabase();
+
+  if (otpReq.otp_code !== cleanCode) {
+    return {
+      success: false,
+      error: `Invalid OTP code. ${5 - otpReq.attempts} attempt(s) remaining.`,
+    };
+  }
+
+  // Delete used OTP
+  memoryDb.otp_requests.splice(reqIndex, 1);
+  saveDatabase();
+
+  return { success: true };
+}
+
+export async function getOrCreateCustomer(data: {
+  email?: string;
+  phone?: string;
+  full_name?: string;
+}): Promise<CustomerRecord> {
+  loadDatabase();
+
+  const cleanEmail = (data.email || '').trim().toLowerCase();
+  const cleanPhone = (data.phone || '').trim().replace(/\D/g, '');
+
+  let customer = memoryDb.customers.find(
+    (c) =>
+      (cleanEmail && c.email.toLowerCase() === cleanEmail) ||
+      (cleanPhone && c.phone.replace(/\D/g, '') === cleanPhone)
+  );
+
+  const now = new Date().toISOString();
+
+  if (customer) {
+    if (data.full_name && data.full_name.trim()) {
+      customer.full_name = data.full_name.trim();
+    }
+    if (cleanEmail && (!customer.email || customer.email.includes('@customer.cup2eat.com'))) {
+      customer.email = cleanEmail;
+      customer.email_verified = true;
+    }
+    if (cleanPhone) {
+      customer.phone = cleanPhone;
+      customer.phone_verified = true;
+    }
+    customer.updated_at = now;
+  } else {
+    customer = {
+      id: `cust-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`,
+      full_name: data.full_name?.trim() || (cleanEmail ? cleanEmail.split('@')[0] : 'Cup2Eat Customer'),
+      email: cleanEmail || `${cleanPhone}@customer.cup2eat.com`,
+      phone: cleanPhone || '9818192575',
+      email_verified: Boolean(cleanEmail),
+      phone_verified: Boolean(cleanPhone),
+      created_at: now,
+      updated_at: now,
+    };
+    memoryDb.customers.push(customer);
+  }
+
+  saveDatabase();
+  return customer;
+}
+
+export async function createCustomerSession(
+  customerId: string
+): Promise<{ token: string; customer: CustomerRecord }> {
+  loadDatabase();
+
+  const customer = memoryDb.customers.find((c) => c.id === customerId);
+  if (!customer) throw new Error('Customer record not found');
+
+  const token = `usr-sec-${crypto.randomBytes(24).toString('hex')}`;
+  const session: CustomerSessionRecord = {
+    token,
+    customer_id: customer.id,
+    email: customer.email,
+    phone: customer.phone,
+    expires_at: Date.now() + 30 * 24 * 60 * 60 * 1000, // 30 days
+  };
+
+  memoryDb.customer_sessions.push(session);
+  saveDatabase();
+
+  return { token, customer };
+}
+
+export async function verifyCustomerToken(token: string): Promise<CustomerRecord | null> {
+  loadDatabase();
+
+  const session = memoryDb.customer_sessions.find((s) => s.token === token && s.expires_at > Date.now());
+  if (!session) return null;
+
+  const customer = memoryDb.customers.find((c) => c.id === session.customer_id);
+  return customer || null;
+}
+
+export async function revokeCustomerToken(token: string): Promise<boolean> {
+  loadDatabase();
+
+  const initialLen = memoryDb.customer_sessions.length;
+  memoryDb.customer_sessions = memoryDb.customer_sessions.filter((s) => s.token !== token);
+  saveDatabase();
+
+  return memoryDb.customer_sessions.length < initialLen;
+}
+
+export async function getCustomerOrders(customerId: string, email?: string, phone?: string): Promise<OrderRecord[]> {
+  loadDatabase();
+
+  const cleanEmail = (email || '').toLowerCase().trim();
+  const cleanPhone = (phone || '').replace(/\D/g, '');
+
+  return memoryDb.orders.filter(
+    (o) =>
+      o.customer_id === customerId ||
+      (cleanEmail && o.email && o.email.toLowerCase() === cleanEmail) ||
+      (cleanPhone && o.phone && o.phone.replace(/\D/g, '') === cleanPhone)
+  );
+}
+
+export async function updateCustomerProfile(
+  customerId: string,
+  updates: Partial<CustomerRecord>
+): Promise<CustomerRecord | null> {
+  loadDatabase();
+
+  const index = memoryDb.customers.findIndex((c) => c.id === customerId);
+  if (index === -1) return null;
+
+  memoryDb.customers[index] = {
+    ...memoryDb.customers[index],
+    ...updates,
+    updated_at: new Date().toISOString(),
+  };
+
+  saveDatabase();
+  return memoryDb.customers[index];
+}
+
+// ----------------------------------------------------
+// Invoice & Transactional Email Database Operations
+// ----------------------------------------------------
+export async function insertInvoice(invoice: InvoiceRecord): Promise<InvoiceRecord> {
+  loadDatabase();
+  const existingIdx = memoryDb.invoices.findIndex((i) => i.id === invoice.id || i.order_id === invoice.order_id);
+  if (existingIdx !== -1) {
+    memoryDb.invoices[existingIdx] = {
+      ...memoryDb.invoices[existingIdx],
+      ...invoice,
+      updated_at: new Date().toISOString(),
+    };
+    saveDatabase();
+    return memoryDb.invoices[existingIdx];
+  }
+  memoryDb.invoices.push(invoice);
+  saveDatabase();
+  return invoice;
+}
+
+export async function getInvoiceById(id: string): Promise<InvoiceRecord | null> {
+  loadDatabase();
+  return memoryDb.invoices.find((i) => i.id === id || i.invoice_number === id) || null;
+}
+
+export async function getInvoiceByOrderId(orderId: string): Promise<InvoiceRecord | null> {
+  loadDatabase();
+  return memoryDb.invoices.find((i) => i.order_id === orderId) || null;
+}
+
+export async function getAllInvoices(query?: { search?: string; status?: string }): Promise<InvoiceRecord[]> {
+  loadDatabase();
+  let list = [...memoryDb.invoices].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+
+  if (query?.search) {
+    const s = query.search.toLowerCase().trim();
+    list = list.filter(
+      (i) =>
+        i.invoice_number.toLowerCase().includes(s) ||
+        i.order_reference.toLowerCase().includes(s) ||
+        i.customer_name.toLowerCase().includes(s) ||
+        i.customer_email.toLowerCase().includes(s)
+    );
+  }
+
+  if (query?.status) {
+    list = list.filter((i) => i.payment_status === query.status || i.email_status === query.status);
+  }
+
+  return list;
+}
+
+export async function getCustomerInvoices(customerId: string, email?: string): Promise<InvoiceRecord[]> {
+  loadDatabase();
+  const cleanEmail = (email || '').toLowerCase().trim();
+  return memoryDb.invoices
+    .filter(
+      (i) =>
+        i.customer_id === customerId ||
+        (cleanEmail && i.customer_email.toLowerCase() === cleanEmail)
+    )
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+}
+
+export async function updateInvoiceRecord(
+  id: string,
+  updates: Partial<InvoiceRecord>
+): Promise<InvoiceRecord | null> {
+  loadDatabase();
+  const index = memoryDb.invoices.findIndex((i) => i.id === id || i.invoice_number === id);
+  if (index === -1) return null;
+
+  memoryDb.invoices[index] = {
+    ...memoryDb.invoices[index],
+    ...updates,
+    updated_at: new Date().toISOString(),
+  };
+
+  saveDatabase();
+  return memoryDb.invoices[index];
+}
+
+export async function insertEmailLog(log: EmailLogRecord): Promise<EmailLogRecord> {
+  loadDatabase();
+  memoryDb.email_logs.push(log);
+  saveDatabase();
+  return log;
+}
+
+export async function getEmailLogsByInvoiceId(invoiceId: string): Promise<EmailLogRecord[]> {
+  loadDatabase();
+  return memoryDb.email_logs.filter((l) => l.invoice_id === invoiceId);
 }

@@ -67,6 +67,7 @@ export interface B2BEnquiryRecord {
 export interface OrderRecord {
   id: string;
   order_reference: string;
+  customer_id?: string | null;
   customer_name: string;
   phone: string;
   email: string;
@@ -114,4 +115,85 @@ export interface AdminSessionRecord {
   admin_id: string;
   email: string;
   expires_at: number;
+}
+
+export interface CustomerRecord {
+  id: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  email_verified: boolean;
+  phone_verified: boolean;
+  default_address?: string | null;
+  default_city?: string | null;
+  default_pincode?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomerSessionRecord {
+  token: string;
+  customer_id: string;
+  email: string;
+  phone: string;
+  expires_at: number;
+}
+
+export interface OtpRequestRecord {
+  id: string;
+  target: string;
+  target_type: 'email' | 'phone';
+  otp_code: string;
+  attempts: number;
+  expires_at: number;
+  created_at: number;
+}
+
+export interface InvoiceRecord {
+  id: string;
+  invoice_number: string;
+  order_id: string;
+  order_reference: string;
+  customer_id?: string | null;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  billing_address: string;
+  shipping_address: string;
+  city: string;
+  pincode: string;
+  flavor: string;
+  number_of_boxes: number;
+  quantity_cups: number;
+  unit_price_per_box: number;
+  subtotal: number;
+  discount_amount: number;
+  taxable_value: number;
+  gst_rate: number; // 18% (9% CGST + 9% SGST)
+  cgst_amount: number;
+  sgst_amount: number;
+  igst_amount: number;
+  total_tax: number;
+  shipping_charge: number;
+  total_amount: number;
+  document_type: 'TAX_INVOICE' | 'PROFORMA_INVOICE' | 'CREDIT_NOTE';
+  payment_status: 'PAID' | 'COD_PENDING' | 'PENDING' | 'REFUNDED' | 'UNPAID';
+  payment_method: string;
+  email_status: 'PENDING' | 'SENT' | 'FAILED' | 'RETRYING';
+  email_sent_at?: string | null;
+  email_error?: string | null;
+  email_retry_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmailLogRecord {
+  id: string;
+  invoice_id: string;
+  order_id: string;
+  recipient_email: string;
+  subject: string;
+  status: 'SENT' | 'FAILED';
+  error_message?: string | null;
+  sent_at: string;
 }

@@ -12,25 +12,25 @@ export const InstagramGallery: React.FC = () => {
       title: '396 Edible Cups for ₹3,999 Wholesale Offer',
       likes: '342',
       category: 'Wholesale Offer',
-      image: '/assets/images/wholesale_box_packaging_1794364086788.jpg',
+      image: '/images/wholesale_box_packaging_1794364086788.jpg',
     },
     {
       title: 'Chocolate Edible Cup with Latte Art Coffee',
       likes: '512',
       category: 'Product Spotlight',
-      image: '/assets/images/flavor_chocolate_cup_1794364085690.jpg',
+      image: '/images/flavor_chocolate_cup_1794364085690.jpg',
     },
     {
       title: 'Masala Chai in Elaichi Cardamom Edible Cup',
       likes: '428',
       category: 'Chai Pairing',
-      image: '/assets/images/flavor_elaichi_cup_1794364086233.jpg',
+      image: '/images/flavor_elaichi_cup_1794364086233.jpg',
     },
     {
       title: 'Founder Varun Khera at Food Tech Expo',
       likes: '619',
       category: 'Brand Story',
-      image: '/assets/images/founder_varun_khera_event_1794364087135.jpg',
+      image: '/images/founder_varun_khera_event_1794364087135.jpg',
     },
   ];
 

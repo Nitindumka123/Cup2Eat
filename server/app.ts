@@ -23,6 +23,24 @@ import {
 } from './routes/admin';
 import { getSiteSettings, initDatabase } from './db';
 
+import {
+  handleSendOtp,
+  handleVerifyOtp,
+  handleGetCustomerMe,
+  handleUpdateCustomerMe,
+  handleGetCustomerOrders,
+  handleCustomerLogout,
+  customerAuthMiddleware,
+} from './routes/auth';
+
+import {
+  handleDownloadInvoicePdf,
+  handleGetCustomerInvoices,
+  handleGetAdminInvoices,
+  handleGetAdminInvoiceDetail,
+  handleAdminResendInvoiceEmail,
+} from './routes/invoices';
+
 dotenv.config();
 
 export const app = express();
@@ -51,6 +69,20 @@ app.use('/api/enquiries', enquiriesRouter);
 app.use('/api/wholesale-enquiries', wholesaleRouter);
 app.use('/api/b2b-enquiries', b2bRouter);
 
+// Public / Token PDF Invoice Download Route
+app.get('/api/invoices/:id/download', handleDownloadInvoicePdf);
+
+// Customer Authentication Routes
+app.post('/api/auth/send-otp', handleSendOtp);
+app.post('/api/auth/verify-otp', handleVerifyOtp);
+
+// Protected Customer Account Routes
+app.get('/api/customer/me', customerAuthMiddleware, handleGetCustomerMe);
+app.put('/api/customer/me', customerAuthMiddleware, handleUpdateCustomerMe);
+app.get('/api/customer/orders', customerAuthMiddleware, handleGetCustomerOrders);
+app.get('/api/customer/invoices', customerAuthMiddleware, handleGetCustomerInvoices);
+app.post('/api/auth/logout', customerAuthMiddleware, handleCustomerLogout);
+
 // Public Order Endpoints
 app.post('/api/orders', handleCreateOrder);
 app.get('/api/orders/:id', handleGetOrderDetails);
@@ -77,6 +109,10 @@ app.get('/api/admin/dashboard-stats', handleGetDashboardStats);
 
 app.get('/api/admin/orders', handleGetAdminOrders);
 app.put('/api/admin/orders/:id', handleUpdateAdminOrder);
+
+app.get('/api/admin/invoices', handleGetAdminInvoices);
+app.get('/api/admin/invoices/:id', handleGetAdminInvoiceDetail);
+app.post('/api/admin/invoices/:id/resend-email', handleAdminResendInvoiceEmail);
 
 app.put('/api/admin/b2b-enquiries/:id', handleUpdateAdminB2B);
 app.put('/api/admin/wholesale-enquiries/:id', handleUpdateAdminWholesale);

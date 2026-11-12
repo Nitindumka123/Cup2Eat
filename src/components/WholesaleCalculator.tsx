@@ -66,7 +66,7 @@ export const WholesaleCalculator: React.FC<WholesaleCalculatorProps> = ({ onOpen
               <SpatialTiltContainer maxTilt={8}>
                 <div className="rounded-2xl overflow-hidden border-2 border-[#D9A52B]/40 shadow-2xl relative">
                   <img
-                    src="/assets/images/wholesale_box_packaging_1794364086788.jpg"
+                    src="/images/wholesale_box_packaging_1794364086788.jpg"
                     alt="Cup2Eat Wholesale Packaging"
                     className="w-full h-64 sm:h-72 object-cover"
                     referrerPolicy="no-referrer"

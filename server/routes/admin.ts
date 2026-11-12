@@ -166,6 +166,8 @@ export async function handleGetAdminOrders(req: Request, res: Response): Promise
   }
 }
 
+import { syncInvoiceWithOrderUpdate } from '../services/invoiceService';
+
 export async function handleUpdateAdminOrder(req: Request, res: Response): Promise<void> {
   try {
     const { id } = req.params;
@@ -181,6 +183,13 @@ export async function handleUpdateAdminOrder(req: Request, res: Response): Promi
     if (!updated) {
       res.status(404).json({ success: false, error: 'Order record not found' });
       return;
+    }
+
+    // Synchronize invoice document type, payment status & transactional email
+    try {
+      await syncInvoiceWithOrderUpdate(updated);
+    } catch (invErr) {
+      console.error('⚠️ Error syncing invoice on order update:', invErr);
     }
 
     res.json({

@@ -4,9 +4,10 @@ import { Phone, Mail, Instagram, MessageCircle, ShieldCheck, Heart } from 'lucid
 
 interface FooterProps {
   onOpenAdminLogin?: () => void;
+  onOpenCustomerAuth?: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onOpenAdminLogin }) => {
+export const Footer: React.FC<FooterProps> = ({ onOpenAdminLogin, onOpenCustomerAuth }) => {
   return (
     <footer className="bg-[#17130C] text-[#FAF5E9] pt-16 pb-8 border-t border-[#D9A52B]/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
@@ -52,6 +53,16 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdminLogin }) => {
               <li><a href="#wholesale" className="hover:text-[#F2B544] transition-colors">Wholesale Offer</a></li>
               <li><a href="#story" className="hover:text-[#F2B544] transition-colors">About & Founder</a></li>
               <li><a href="#sustainability" className="hover:text-[#F2B544] transition-colors">Sustainability Story</a></li>
+              {onOpenCustomerAuth && (
+                <li>
+                  <button
+                    onClick={onOpenCustomerAuth}
+                    className="hover:text-[#F2B544] text-[#F2B544] font-bold transition-colors cursor-pointer"
+                  >
+                    Customer Account / Login
+                  </button>
+                </li>
+              )}
             </ul>
           </div>
 

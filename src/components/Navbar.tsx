@@ -1,13 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, MessageCircle, Phone, Sparkles } from 'lucide-react';
+import { Menu, X, MessageCircle, Phone, Sparkles, User, UserCheck, ShoppingBag } from 'lucide-react';
 import { BRAND_DETAILS } from '../data/cup2eatData';
 
 interface NavbarProps {
   onOpenEnquiry: (category?: string) => void;
   activeSection?: string;
+  customer?: any;
+  onOpenAuthModal?: () => void;
+  onOpenAccountModal?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onOpenEnquiry, activeSection = 'home' }) => {
+export const Navbar: React.FC<NavbarProps> = ({
+  onOpenEnquiry,
+  activeSection = 'home',
+  customer,
+  onOpenAuthModal,
+  onOpenAccountModal,
+}) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -56,7 +65,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEnquiry, activeSection = '
           </div>
         </a>
 
-        {/* Zone 2: 4-5 Nav Links (Single line, whitespace-nowrap) */}
+        {/* Zone 2: Nav Links */}
         <nav className="hidden lg:flex items-center gap-6 text-sm font-medium text-[#FAF5E9]/90">
           {navLinks.map((link) => (
             <a
@@ -69,8 +78,27 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEnquiry, activeSection = '
           ))}
         </nav>
 
-        {/* Zone 3: 1 Primary Action + Direct WhatsApp Trigger */}
+        {/* Zone 3: Actions + Customer Account/Login Button */}
         <div className="hidden sm:flex items-center gap-3 shrink-0">
+          {/* Customer Auth / Account Entry Point */}
+          {customer ? (
+            <button
+              onClick={onOpenAccountModal}
+              className="px-3.5 py-2 text-xs font-bold text-[#F2B544] bg-[#073B2B] hover:bg-[#0B5D43] border border-[#D9A52B]/50 rounded-lg shadow transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer"
+            >
+              <UserCheck className="w-4 h-4 text-[#F2B544]" />
+              <span>{customer.full_name?.split(' ')[0] || 'Account'}</span>
+            </button>
+          ) : (
+            <button
+              onClick={onOpenAuthModal}
+              className="px-3.5 py-2 text-xs font-bold text-[#FFF4D6] hover:text-[#F2B544] bg-[#073B2B]/80 hover:bg-[#073B2B] border border-[#D9A52B]/30 rounded-lg transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer"
+            >
+              <User className="w-3.5 h-3.5 text-[#D9A52B]" />
+              <span>Sign In / Register</span>
+            </button>
+          )}
+
           <a
             href={`https://wa.me/${BRAND_DETAILS.whatsappNumber}?text=Hello%20Cup2Eat,%20I%20am%20interested%20in%20your%20edible%20cups%20and%20wholesale%20pricing.`}
             target="_blank"
@@ -84,7 +112,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEnquiry, activeSection = '
 
           <button
             onClick={() => onOpenEnquiry('wholesale')}
-            className="px-4 py-2 text-xs font-bold text-[#073B2B] bg-gradient-to-r from-[#D9A52B] to-[#F2B544] hover:from-[#F2B544] hover:to-[#D9A52B] rounded-lg shadow-md hover:shadow-xl transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5"
+            className="px-4 py-2 text-xs font-bold text-[#073B2B] bg-gradient-to-r from-[#D9A52B] to-[#F2B544] hover:from-[#F2B544] hover:to-[#D9A52B] rounded-lg shadow-md hover:shadow-xl transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer"
           >
             <Sparkles className="w-3.5 h-3.5" />
             Wholesale Enquiry
@@ -94,7 +122,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEnquiry, activeSection = '
         {/* Mobile Menu Button */}
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="lg:hidden p-2 text-[#FFF4D6] hover:text-[#F2B544] transition-colors"
+          className="lg:hidden p-2 text-[#FFF4D6] hover:text-[#F2B544] transition-colors cursor-pointer"
           aria-label="Toggle Navigation Menu"
         >
           {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -104,6 +132,39 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEnquiry, activeSection = '
       {/* Mobile Drawer Navigation */}
       {mobileMenuOpen && (
         <div className="lg:hidden bg-[#073B2B] border-t border-[#D9A52B]/30 px-4 pt-4 pb-6 mt-3 space-y-3 animate-fadeIn">
+          {/* Customer Auth / Account Entry in Mobile Menu */}
+          <div className="pb-2 border-b border-white/10">
+            {customer ? (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  if (onOpenAccountModal) onOpenAccountModal();
+                }}
+                className="w-full py-2.5 px-4 rounded-xl bg-[#0B5D43] border border-[#D9A52B]/40 text-xs font-bold text-[#FFF4D6] flex items-center justify-between cursor-pointer"
+              >
+                <span className="flex items-center gap-2">
+                  <UserCheck className="w-4 h-4 text-[#F2B544]" />
+                  <span>Account: {customer.full_name || 'My Profile'}</span>
+                </span>
+                <span className="text-[10px] text-[#D9A52B] font-extrabold uppercase">My Orders →</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  if (onOpenAuthModal) onOpenAuthModal();
+                }}
+                className="w-full py-2.5 px-4 rounded-xl bg-[#0B5D43] border border-[#D9A52B]/40 text-xs font-bold text-[#FFF4D6] flex items-center justify-between cursor-pointer"
+              >
+                <span className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-[#F2B544]" />
+                  <span>Customer Login / Register</span>
+                </span>
+                <span className="text-[10px] text-[#F2B544] font-extrabold">OTP Login →</span>
+              </button>
+            )}
+          </div>
+
           {navLinks.map((link) => (
             <a
               key={link.href}
@@ -115,7 +176,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenEnquiry, activeSection = '
             </a>
           ))}
 
-          <div className="pt-4 flex flex-col gap-3">
+          <div className="pt-2 flex flex-col gap-3">
             <button
               onClick={() => {
                 setMobileMenuOpen(false);

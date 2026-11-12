@@ -225,6 +225,223 @@ async function runBackendTests() {
     return res.status === 200 && data.success === true && typeof data.data.calculated_revenue === 'number';
   });
 
+  // ----------------------------------------------------
+  // Phase 10: Customer Authentication & Order Linking Tests
+  // ----------------------------------------------------
+  let customerToken = '';
+  let customerDevOtp = '';
+  const testCustomerEmail = `qa.customer.${Date.now()}@cup2eat.com`;
+
+  // Test 13: Request Customer OTP
+  await assertTest('POST /api/auth/send-otp should generate and return 6-digit OTP code', async () => {
+    const res = await fetch(`${baseUrl}/api/auth/send-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target: testCustomerEmail, target_type: 'email' }),
+    });
+    const data = await res.json();
+    if (res.status === 200 && data.success && data.data?.dev_code) {
+      customerDevOtp = data.data.dev_code;
+      return true;
+    }
+    return false;
+  });
+
+  // Test 14: Reject Invalid OTP
+  await assertTest('POST /api/auth/verify-otp with incorrect 6-digit code should return 400', async () => {
+    const res = await fetch(`${baseUrl}/api/auth/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target: testCustomerEmail, target_type: 'email', code: '000000' }),
+    });
+    const data = await res.json();
+    return res.status === 400 && data.success === false;
+  });
+
+  // Test 15: Verify OTP & Issue Customer Session Bearer Token
+  await assertTest('POST /api/auth/verify-otp with valid dev OTP should register customer & return usr-sec token', async () => {
+    const res = await fetch(`${baseUrl}/api/auth/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        target: testCustomerEmail,
+        target_type: 'email',
+        code: customerDevOtp,
+        full_name: 'QA Cup2Eat Customer',
+      }),
+    });
+    const data = await res.json();
+    if (res.status === 200 && data.success && data.token && (data.customer?.id || data.user?.id)) {
+      customerToken = data.token;
+      return data.token.startsWith('usr-sec-');
+    }
+    return false;
+  });
+
+  // Test 16: Retrieve Authenticated Customer Profile
+  await assertTest('GET /api/customer/me with customer Bearer token should return profile details', async () => {
+    const res = await fetch(`${baseUrl}/api/customer/me`, {
+      headers: { Authorization: `Bearer ${customerToken}` },
+    });
+    const data = await res.json();
+    return res.status === 200 && data.success === true && data.data.email === testCustomerEmail;
+  });
+
+  // Test 17: Update Customer Profile Data
+  await assertTest('PUT /api/customer/me should update profile address & details in database', async () => {
+    const res = await fetch(`${baseUrl}/api/customer/me`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${customerToken}`,
+      },
+      body: JSON.stringify({
+        full_name: 'QA Cup2Eat Customer Updated',
+        default_address: 'Suite 502, Sector 62',
+        default_city: 'Noida',
+        default_pincode: '201301',
+      }),
+    });
+    const data = await res.json();
+    return res.status === 200 && data.success === true && data.data.default_city === 'Noida';
+  });
+
+  // Test 18: Submit Customer Order with Authorization Token (Automatic Customer Linking)
+  await assertTest('POST /api/orders with customer Bearer token should attach customer_id to order record', async () => {
+    const payload = {
+      customer_name: 'QA Cup2Eat Customer Updated',
+      phone: '9818192575',
+      email: testCustomerEmail,
+      delivery_address: 'Suite 502, Sector 62',
+      city: 'Noida',
+      pincode: '201301',
+      flavor: 'Elaichi',
+      number_of_boxes: 3,
+      order_category: 'wholesale',
+      notes: 'Customer portal linked order test',
+    };
+    const res = await fetch(`${baseUrl}/api/orders`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${customerToken}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    return res.status === 201 && data.success === true && !!data.data.customer_id;
+  });
+
+  // Test 19: Private Customer Order History Timeline
+  await assertTest('GET /api/customer/orders should return all private orders for authenticated customer', async () => {
+    const res = await fetch(`${baseUrl}/api/customer/orders`, {
+      headers: { Authorization: `Bearer ${customerToken}` },
+    });
+    const data = await res.json();
+    return res.status === 200 && data.success === true && Array.isArray(data.data) && data.data.length >= 1;
+  });
+
+  // Test 20: Customer Logout & Token Revocation
+  await assertTest('POST /api/auth/logout should revoke customer Bearer token', async () => {
+    const logoutRes = await fetch(`${baseUrl}/api/auth/logout`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${customerToken}` },
+    });
+    const logoutData = await logoutRes.json();
+
+    const meRes = await fetch(`${baseUrl}/api/customer/me`, {
+      headers: { Authorization: `Bearer ${customerToken}` },
+    });
+
+    return logoutRes.status === 200 && logoutData.success === true && meRes.status === 401;
+  });
+
+  // ----------------------------------------------------
+  // Phase 11: Invoicing, PDF Generation & Email Delivery Tests
+  // ----------------------------------------------------
+  let generatedInvoiceId = '';
+
+  // Test 21: Automatic Invoice Creation on Order Submission
+  await assertTest('POST /api/orders should automatically generate an invoice with INV-2026 format', async () => {
+    const payload = {
+      customer_name: 'Invoicing Test Customer',
+      phone: '9818192575',
+      email: 'invoice.customer@cup2eat.com',
+      delivery_address: 'Plot 10, Sector 18',
+      city: 'Gurugram',
+      pincode: '122001',
+      flavor: 'Chocolate',
+      number_of_boxes: 1,
+      order_category: 'wholesale',
+      notes: 'Automated invoice generation test',
+    };
+    const res = await fetch(`${baseUrl}/api/orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    return res.status === 201 && data.success === true && typeof data.data.invoice_number === 'string' && data.data.invoice_number.startsWith('INV-');
+  });
+
+  // Test 22: Protected Admin Invoices List & Retrieval
+  await assertTest('GET /api/admin/invoices with admin token should list all generated invoices', async () => {
+    const res = await fetch(`${baseUrl}/api/admin/invoices`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    const data = await res.json();
+    if (res.status === 200 && data.success === true && Array.isArray(data.data) && data.data.length >= 1) {
+      generatedInvoiceId = data.data[0].id;
+      return true;
+    }
+    return false;
+  });
+
+  // Test 23: PDF Invoice Stream Generation
+  await assertTest('GET /api/invoices/:id/download should generate & stream binary PDF document', async () => {
+    if (!generatedInvoiceId) return false;
+    const res = await fetch(`${baseUrl}/api/invoices/${generatedInvoiceId}/download`);
+    const contentType = res.headers.get('content-type');
+    const buffer = await res.arrayBuffer();
+    return res.status === 200 && contentType === 'application/pdf' && buffer.byteLength > 500;
+  });
+
+  // Test 24: Admin Resend Transactional Email with PDF Attachment
+  await assertTest('POST /api/admin/invoices/:id/resend-email should retry email delivery and record log', async () => {
+    if (!generatedInvoiceId) return false;
+    const res = await fetch(`${baseUrl}/api/admin/invoices/${generatedInvoiceId}/resend-email`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    const data = await res.json();
+    return res.status === 200 && data.success === true;
+  });
+
+  // Test 25: Sync Invoice Document Type on Order Status Transition to PAID
+  await assertTest('PUT /api/admin/orders/:id updating payment to PAID should convert invoice to TAX_INVOICE', async () => {
+    if (!createdOrderId) return false;
+    const res = await fetch(`${baseUrl}/api/admin/orders/${createdOrderId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${adminToken}`,
+      },
+      body: JSON.stringify({
+        status: 'CONFIRMED',
+        payment_status: 'PAID',
+      }),
+    });
+    const data = await res.json();
+
+    const invRes = await fetch(`${baseUrl}/api/admin/invoices`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    const invData = await invRes.json();
+    const matchedInvoice = invData.data?.find((i: any) => i.order_id === createdOrderId);
+
+    return res.status === 200 && matchedInvoice && matchedInvoice.document_type === 'TAX_INVOICE' && matchedInvoice.payment_status === 'PAID';
+  });
+
   console.log(`\n📊 Backend Test Summary: ${passedCount} Passed, ${failedCount} Failed.`);
 
   server.close();

@@ -16,10 +16,13 @@ import { EnquiryModal } from './components/EnquiryModal';
 import { ProductDetailModal } from './components/ProductDetailModal';
 import { B2BModal } from './components/B2BModal';
 import { OrderModal } from './components/OrderModal';
+import { CustomerAuthModal } from './components/CustomerAuthModal';
+import { CustomerAccountModal } from './components/CustomerAccountModal';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import { ProductFlavor } from './data/cup2eatData';
-import { ShieldCheck, ArrowLeft } from 'lucide-react';
+import { getCustomerMe } from './services/api';
+import { ArrowLeft } from 'lucide-react';
 
 export default function App() {
   // Simple Client Route handling (/admin or #admin)
@@ -52,6 +55,37 @@ export default function App() {
   const [b2bBusinessType, setB2bBusinessType] = useState<string>('Cafes & Specialty Coffee');
 
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+
+  // Customer Auth & Account state
+  const [customer, setCustomer] = useState<any>(null);
+  const [isCustomerAuthOpen, setIsCustomerAuthOpen] = useState(false);
+  const [isCustomerAccountOpen, setIsCustomerAccountOpen] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem('cup2eat_customer_token');
+    if (token) {
+      getCustomerMe(token).then((res) => {
+        if (res.success && res.data) {
+          setCustomer(res.data);
+        } else {
+          localStorage.removeItem('cup2eat_customer_token');
+          setCustomer(null);
+        }
+      });
+    }
+  }, []);
+
+  const handleCustomerAuthSuccess = (customerData: any, token: string) => {
+    localStorage.setItem('cup2eat_customer_token', token);
+    setCustomer(customerData);
+    setIsCustomerAuthOpen(false);
+  };
+
+  const handleCustomerLogout = () => {
+    localStorage.removeItem('cup2eat_customer_token');
+    setCustomer(null);
+    setIsCustomerAccountOpen(false);
+  };
 
   // Flavor State Sync
   const [heroFlavorId, setHeroFlavorId] = useState<'chocolate' | 'vanilla' | 'elaichi' | 'wholesale'>('chocolate');
@@ -118,7 +152,12 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#FAF5E9] text-[#17130C] font-sans selection:bg-[#D9A52B]/30 selection:text-[#073B2B] flex flex-col justify-between">
       {/* 1. Header Navbar with Navigation links */}
-      <Navbar onOpenEnquiry={handleOpenGeneralEnquiry} />
+      <Navbar
+        onOpenEnquiry={handleOpenGeneralEnquiry}
+        customer={customer}
+        onOpenAuthModal={() => setIsCustomerAuthOpen(true)}
+        onOpenAccountModal={() => setIsCustomerAccountOpen(true)}
+      />
 
       {/* Main Content */}
       <main className="flex-grow">
@@ -165,7 +204,16 @@ export default function App() {
       </main>
 
       {/* Footer with Hidden Admin Entrance */}
-      <Footer onOpenAdminLogin={handleOpenAdminLogin} />
+      <Footer
+        onOpenAdminLogin={handleOpenAdminLogin}
+        onOpenCustomerAuth={() => {
+          if (customer) {
+            setIsCustomerAccountOpen(true);
+          } else {
+            setIsCustomerAuthOpen(true);
+          }
+        }}
+      />
 
       {/* Floating Action WhatsApp Button */}
       <WhatsAppButton />
@@ -182,6 +230,8 @@ export default function App() {
         isOpen={isOrderModalOpen}
         onClose={() => setIsOrderModalOpen(false)}
         initialFlavorId={heroFlavorId}
+        customer={customer}
+        onOpenAuthModal={() => setIsCustomerAuthOpen(true)}
       />
 
       {/* Modal 2: General & Wholesale Enquiry Modal */}
@@ -206,6 +256,23 @@ export default function App() {
         isOpen={isB2BModalOpen}
         onClose={() => setIsB2BModalOpen(false)}
         initialBusinessType={b2bBusinessType}
+      />
+
+      {/* Modal 5: Customer Auth Modal */}
+      <CustomerAuthModal
+        isOpen={isCustomerAuthOpen}
+        onClose={() => setIsCustomerAuthOpen(false)}
+        onSuccess={handleCustomerAuthSuccess}
+      />
+
+      {/* Modal 6: Customer Account & Orders Modal */}
+      <CustomerAccountModal
+        isOpen={isCustomerAccountOpen}
+        onClose={() => setIsCustomerAccountOpen(false)}
+        customer={customer}
+        onUpdateCustomer={(updated) => setCustomer(updated)}
+        onLogout={handleCustomerLogout}
+        onOpenOrderModal={() => handleOpenOrderModal('chocolate')}
       />
     </div>
   );

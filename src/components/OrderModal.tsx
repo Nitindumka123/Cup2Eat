@@ -9,12 +9,16 @@ interface OrderModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialFlavorId?: string;
+  customer?: any;
+  onOpenAuthModal?: () => void;
 }
 
 export const OrderModal: React.FC<OrderModalProps> = ({
   isOpen,
   onClose,
   initialFlavorId = 'chocolate',
+  customer,
+  onOpenAuthModal,
 }) => {
   if (!isOpen) return null;
 
@@ -25,12 +29,12 @@ export const OrderModal: React.FC<OrderModalProps> = ({
   const [numberOfBoxes, setNumberOfBoxes] = useState<number>(1);
   const [orderCategory, setOrderCategory] = useState<'wholesale' | 'individual'>('wholesale');
 
-  const [customerName, setCustomerName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [city, setCity] = useState('');
-  const [pincode, setPincode] = useState('');
+  const [customerName, setCustomerName] = useState(customer?.full_name || '');
+  const [phone, setPhone] = useState(customer?.phone || '');
+  const [email, setEmail] = useState(customer?.email || '');
+  const [deliveryAddress, setDeliveryAddress] = useState(customer?.default_address || '');
+  const [city, setCity] = useState(customer?.default_city || '');
+  const [pincode, setPincode] = useState(customer?.default_pincode || '');
   const [notes, setNotes] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -156,6 +160,30 @@ export const OrderModal: React.FC<OrderModalProps> = ({
 
           {step === 'details' && (
             <form onSubmit={handleNextToSummary} className="space-y-5">
+              {/* Customer Account Banner */}
+              {customer ? (
+                <div className="p-3 bg-[#073B2B]/10 border border-[#073B2B]/30 rounded-xl text-xs text-[#073B2B] flex items-center justify-between">
+                  <span className="font-bold flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-[#D9A52B]" />
+                    <span>Logged in as <strong>{customer.full_name}</strong> ({customer.email})</span>
+                  </span>
+                  <span className="text-[10px] bg-[#073B2B] text-[#F2B544] px-2 py-0.5 rounded font-extrabold">AUTO-FILLED</span>
+                </div>
+              ) : (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center justify-between">
+                  <span>Have a Cup2Eat account? Sign in for instant auto-fill & order tracking.</span>
+                  {onOpenAuthModal && (
+                    <button
+                      type="button"
+                      onClick={onOpenAuthModal}
+                      className="px-2.5 py-1 text-[11px] font-extrabold text-[#073B2B] bg-[#F2B544] rounded-lg hover:bg-[#D9A52B] cursor-pointer shrink-0"
+                    >
+                      OTP Sign In →
+                    </button>
+                  )}
+                </div>
+              )}
+
               {/* Product & Flavour Selection */}
               <div className="p-4 bg-[#FAF5E9] rounded-2xl border border-[#073B2B]/15 space-y-3">
                 <label className="block text-xs font-extrabold text-[#073B2B]">
